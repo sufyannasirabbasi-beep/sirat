@@ -1,0 +1,6 @@
+{
+  "name": "Sirat",
+  "description": "Premium Islamic AI Research Platform providing deep insights across Quran, Hadith, Tafsir, Comparative Fiqh, and creative Generators.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
