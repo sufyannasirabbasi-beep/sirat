@@ -18,13 +18,14 @@ app.use(express.json());
 
 const PORT = 3000;
 
-// Initialize Gemini Client
-const apiKey = process.env.GEMINI_API_KEY;
-let ai: GoogleGenAI | null = null;
-
-if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
+// Lazy initialization of Gemini client to support dynamic serverless environment variables on Vercel
+function getGeminiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
+    return null;
+  }
   try {
-    ai = new GoogleGenAI({
+    return new GoogleGenAI({
       apiKey: apiKey,
       httpOptions: {
         headers: {
@@ -33,7 +34,8 @@ if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
       },
     });
   } catch (error) {
-    console.error("Failed to initialize GoogleGenAI client:", error);
+    console.error("Failed to initialize GoogleGenAI client dynamically:", error);
+    return null;
   }
 }
 
@@ -100,8 +102,8 @@ Guidance:
 - Output in beautifully structured sections, suitable for a Khatib to read.`
 };
 
-// API Route for Sirat AI Research
-app.post("/api/research", async (req: Request, res: Response): Promise<void> => {
+// API Route for Sirat AI Research (handles both prefixed and rewritten requests for Vercel resilience)
+app.post(["/api/research", "/research"], async (req: Request, res: Response): Promise<void> => {
   const { module, query, options } = req.body;
 
   if (!module || !query) {
@@ -118,6 +120,9 @@ app.post("/api/research", async (req: Request, res: Response): Promise<void> => 
   // Look up or identify local structured database record for potential future API connections
   const localRecord = identifyScholarlyTopic(query as string);
   const verificationResponse = mapRecordToSourceVerifiedResponse(query as string, localRecord, options);
+
+  // Retrieve Gemini client dynamically to get fresh environment variables inside the Vercel request context
+  const ai = getGeminiClient();
 
   // If Gemini client is not initialized, utilize Sirat's advanced local reference-first scholarly database immediately.
   if (!ai) {
@@ -193,4 +198,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
